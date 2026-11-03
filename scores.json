@@ -1,0 +1,7 @@
+{
+  "comment": "Same-bytes runs of our ARC2 baseline kernel (code sha256 f35df0a5dff359f8). Both entries are the SAME kernel bytes deployed twice; the 2.08-point spread is the leaderboard noise floor for this baseline.",
+  "runs": [
+    {"ref": "57318970", "code_sha256": "f35df0a5dff359f8", "public_score": 31.39, "note": "reference submission"},
+    {"ref": "57857093", "code_sha256": "f35df0a5dff359f8", "public_score": 29.31, "note": "same bytes, second deployment"}
+  ]
+}
