@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Compute the same-bytes leaderboard noise floor for a baseline kernel.
+"""Compute the same-code leaderboard noise floor for a baseline kernel.
 
 The floor is the largest observed public-score spread between runs whose code
-bytes are identical. It bounds the resolution of any leaderboard-based A/B
+hash is identical. It bounds the resolution of any leaderboard-based A/B
 comparison: deltas smaller than the floor are not attributable to the change
 under test.
 
@@ -10,8 +10,8 @@ Usage:
     python3 noise_floor.py scores.json
 
 scores.json format:
-    {"runs": [{"ref": "57318970", "code_sha256": "f35df0a5...", "public_score": 31.39},
-              {"ref": "57857093", "code_sha256": "f35df0a5...", "public_score": 29.31}]}
+    {"runs": [{"ref": "57857093", "code_sha256": "96e6f2e7f7113147", "public_score": 29.72},
+              {"ref": "57891197", "code_sha256": "96e6f2e7f7113147", "public_score": 27.64}]}
 """
 import argparse
 import json
@@ -54,7 +54,7 @@ def main():
         print("Any leaderboard delta below this is unresolvable by deployment alone.")
     else:
         print("NOISE FLOOR = not established (no code sha256 has >= 2 runs)")
-        print("Collect more same-bytes runs before trusting any sub-point delta.")
+        print("Collect more same-code runs before trusting any sub-point delta.")
     return 0
 
 

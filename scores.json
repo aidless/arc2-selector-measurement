@@ -1,7 +1,11 @@
 {
-  "comment": "Same-bytes runs of our ARC2 baseline kernel (code sha256 f35df0a5dff359f8). Both entries are the SAME kernel bytes deployed twice; the 2.08-point spread is the leaderboard noise floor for this baseline.",
+  "comment": "Leaderboard rows read from `kaggle competitions submissions -c arc-prize-2026-arc-agi-2` on 2026-11-03. Two same-code groups are present: 96e6f2e7f7113147 (29.72 vs 27.64, spread 2.08) and f35df0a5dff359f8 (28.47 vs 27.22, spread 1.25). The 31.39/29.31 pair is the same recipe but recorded no hash, so it is listed for context and excluded from the same-code floor.",
   "runs": [
-    {"ref": "57318970", "code_sha256": "f35df0a5dff359f8", "public_score": 31.39, "note": "reference submission"},
-    {"ref": "57857093", "code_sha256": "f35df0a5dff359f8", "public_score": 29.31, "note": "same bytes, second deployment"}
+    {"ref": "57318970", "public_score": 31.39, "note": "same recipe, no code hash recorded"},
+    {"ref": "57358812", "public_score": 29.31, "note": "same recipe, no code hash recorded"},
+    {"ref": "57652539", "code_sha256": "f35df0a5dff359f8", "public_score": 28.47, "note": "same-code pair, first run"},
+    {"ref": "57757933", "code_sha256": "f35df0a5dff359f8", "public_score": 27.22, "note": "same-code pair, second run"},
+    {"ref": "57857093", "code_sha256": "96e6f2e7f7113147", "public_score": 29.72, "note": "same-code pair, first run"},
+    {"ref": "57891197", "code_sha256": "96e6f2e7f7113147", "public_score": 27.64, "note": "same-code pair, second run"}
   ]
 }

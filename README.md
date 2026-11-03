@@ -8,11 +8,13 @@ This repository is the open-source artifact set for our ARC-AGI-2 writeup. It is
 
 ## The headline result: the leaderboard has a 2.08-point noise floor
 
-Two **byte-identical** runs of the same kernel (`code sha256 f35df0a5dff359f8…`) produced public scores of **31.39** and **29.31**.
+Two submissions carrying the same recorded code hash (`96e6f2e7f7113147`) scored **29.72** (ref 57857093) and **27.64** (ref 57891197).
 
 ```
-Δ = 2.08 points from identical bytes
+Δ = 2.08 points from the same recorded code
 ```
+
+A second same-hash pair (`f35df0a5dff359f8…`) scored 28.47 and 27.22 — Δ = 1.25 — so 2.08 is the largest observed spread, not a constant. An earlier pair from the same recipe scored 31.39 and 29.31, but neither recorded a hash; we treat that as weaker evidence and do not use it as a same-code bound.
 
 On this benchmark, **any leaderboard delta below ~2 points is unresolvable noise.** Deployment is not evidence. This number is the most reusable thing we produced, and it is the reason we publish the selector surface rather than a score.
 
@@ -40,7 +42,7 @@ This is why the diversity constraint is the *natural* ablation rather than one h
 | `src/arc_solver.py` | Qwen3-4B SFT decoder wrapper, LoRA training path |
 | `src/starter.py` | Multi-worker runner, time budgeting |
 | `src/cell_03.py` | **Measurement switches** (`ARC_SELECTOR`, `ARC_COST_ORDER`, `ARC_SCORE_SALT`, `ARC_DEV_TASKS`) |
-| `analysis/` | Sign-test / McNemar analysis and the noise-floor computation |
+| `analysis/` | Exact sign test, selector recomputation, and the noise-floor computation |
 | `dumps/` | Candidate dumps + per-pair labels (CC0) — see below |
 
 ## The selector surface
