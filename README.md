@@ -62,14 +62,34 @@ Reproducible variants are defined by four environment variables, set in `src/cel
 - `ARC_SCORE_SALT` — deterministic crc32 seed vs. salted `hash(task_id)`
 - `ARC_DEV_TASKS` — task subset selector (dev mode only; ignored during competition rerun)
 
-## Honest results
+## Honest results: no selector survives cross-pool replication
 
-**Count-desc vs. kgmon, on frozen candidate dumps (2026-10-30), official OR caliber:**
-2 gained / 0 lost (exact sign test *p* = .25), per-pair accuracy **23.26% → 24.42%** (+1.16 points/pair).
+We tested three selectors on three **real** candidate pools produced by separate runs.
+The pools overlap (T3 full, n = 159, shares 99 keys with T4-rem108 and 56 with T4-n8;
+T4-rem108 and T4-n8 are disjoint), so each pool is reported separately and the merged
+pool is only a descriptive summary.
 
-This is the same order as the 2.08-point noise floor, so it is a **hypothesis, not a confirmed leaderboard effect.**
+| pool | n | kgmon | count-desc | paired (count − kgmon) |
+|---|---:|---:|---:|---:|
+| T3 full | 159 | 22.64% | 22.01% | **+1 / −2** |
+| T4-rem108 | 101 | 24.75% | 26.73% | +2 / −0 |
+| T4-n8 | 57 | 26.32% | 26.32% | +0 / −0 |
+| merged (descriptive) | 162 | 24.07% | 25.93% | +3 / −0 |
 
-**Diversity constraint — a gain that failed replication.** +3/−0 on the initial dumps, then **+0/−2** on an independent pass-k pool (pooled sign *p* = .50). We therefore do **not** ship it as default. We publish the non-replication because a selector line that only ever shows gains is a selector line that was never measured.
+The merged row is the one that looks like a win, and the one that should be trusted
+least: it is assembled from overlapping runs, so for 99 keys the candidate pool is
+larger than any single run actually produced.
+
+**On the largest single pool, count-desc is slightly worse than kgmon (+1/−2).**
+
+So we ship `count-desc` as the default (`ARC_SELECTOR=v2`) because it is the simplest
+deterministic rule — **not** because we demonstrated it is better. We could not
+demonstrate that. This is the paper's point: at this sample size, selector effects sit
+below both the leaderboard noise floor (2.08 points) and the cross-pool replication
+threshold.
+
+**The diversity constraint fails the same test, harder.** `ARC_SELECTOR=v2div` scored
++6/−0 on the merged pool but **+1/−4** on the largest single pool. It is not the default.
 
 ### Five negative results (each cost real compute, all reproducible)
 

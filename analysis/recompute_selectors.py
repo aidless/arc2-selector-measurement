@@ -173,10 +173,11 @@ def main():
         report(load_dumps(args.dumps, gt), "MERGED (all pools)")
 
     print()
-    print("Interpretation: the diversity constraint looked positive on the largest")
-    print("pool and negative on both independent checks. A gain that appears only on")
-    print("the pool used to discover it is not a gain -- which is why v2div is not the")
-    print("default selector.")
+    print("Interpretation: every selector line here fails cross-pool replication.")
+    print("count-desc wins on the merged pool but loses on the largest single pool;")
+    print("the diversity constraint swings even harder. A gain that appears only on")
+    print("the pool used to discover it is not a gain -- which is why neither rule is")
+    print("shipped as a demonstrated improvement.")
 
 
 if __name__ == "__main__":
