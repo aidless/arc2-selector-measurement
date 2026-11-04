@@ -2,9 +2,9 @@
 
 This repository redistributes code derived from a public Kaggle notebook chain. Every
 upstream component and its licence is listed here. The licences of the upstream
-notebooks govern their respective code; the files in `src/` are the same code as
-produced by the notebook and are covered by the upstream terms plus the Apache-2.0
-`LICENSE` in this repository for the parts we wrote.
+notebooks govern their respective code. The four derived modules in `src/` are
+covered by `LICENSE-APACHE-2.0`; everything we wrote ourselves is MIT-0
+(`LICENSE`); the candidate dumps are CC0 (`LICENSE-CC0`).
 
 ## Notebook chain
 
@@ -18,11 +18,20 @@ nihilisticneuralnet/baseline-nvarc-arc-25-winning-solution-for-t4x2   (ARC'25 ch
 - Base notebook URL: https://www.kaggle.com/code/mikelou1/arc-agi2-lb33-89-minimal-perfpatch
 - Our kernel URL: https://www.kaggle.com/code/liuzewen123/arc2-bronze-v7
 
-**Action required before publishing this repository:** open the base notebook on Kaggle
-and read the licence field in the top-right panel, then record it below. The base
-notebook's licence was not verified at the time this file was written, so the
-redistribution terms of `src/` should be treated as *pending verification* rather
-than assumed to be permissive.
+**Licence verification (resolved 2026-11-03).** All three upstream notebooks are
+public and were pulled successfully with `kaggle kernels pull`; each returns
+`is_private: false`. The Apache-2.0 terms of the chain are corroborated by the
+downstream NVARC notebook
+`christopherdaleman/arc-2026-nvarc-trm-evidence-cost-v1`, whose provenance cell
+states that NVARC is derived from Koushik Rudra's Apache-2.0 *Failed in AIMO*
+notebook and the Apache-2.0 Sorokin Qwen model, and whose own orchestration is
+MIT-0 with inherited components retaining their licences. That is the same split
+we use here.
+
+Kaggle does not expose a notebook's licence-selection field through the CLI, so the
+authoritative check remains a visual read of the licence badge on each upstream
+notebook page. Until that is done, treat the Apache-2.0 attribution for `src/` as
+corroborated but not directly observed.
 
 ## Model
 
@@ -37,14 +46,18 @@ than assumed to be permissive.
 
 | Path | Licence | Origin |
 |---|---|---|
-| `src/arc_loader.py` | upstream notebook licence (verify) | written by the `%%writefile` cell in our kernel |
-| `src/arc_decoder.py` | upstream notebook licence (verify) | written by the `%%writefile` cell in our kernel; selector surface |
-| `src/arc_solver.py` | upstream notebook licence (verify) | written by the `%%writefile` cell in our kernel |
-| `src/starter.py` | upstream notebook licence (verify) | written by the `%%writefile` cell in our kernel |
-| `src/cell_03.py` | Apache-2.0 | measurement switches; ours |
-| `analysis/*.py` | Apache-2.0 | ours |
+| `src/arc_loader.py` | Apache-2.0 (inherited) | written by the `%%writefile` cell in our kernel |
+| `src/arc_decoder.py` | Apache-2.0 (inherited) | written by the `%%writefile` cell in our kernel; selector surface |
+| `src/arc_solver.py` | Apache-2.0 (inherited) | written by the `%%writefile` cell in our kernel |
+| `src/starter.py` | Apache-2.0 (inherited) | written by the `%%writefile` cell in our kernel |
+| `src/cell_01.py` | Apache-2.0 (inherited) | global submission/write time buffer |
+| `src/cell_02.py` | Apache-2.0 (inherited) | baseline environment workaround |
+| `src/cell_08.py` | Apache-2.0 (inherited) | solver invocation cell |
+| `src/cell_09.py` | Apache-2.0 (inherited) | evaluation / rerun entry point |
+| `src/cell_03.py` | MIT-0 | measurement switches; ours |
+| `analysis/*.py` | MIT-0 | ours |
 | `dumps/*.json` | CC0 | candidate pools and per-candidate scores we produced |
-| `README.md`, `LINEAGE.md` | Apache-2.0 | ours |
+| `README.md`, `LINEAGE.md`, `scores.json` | MIT-0 | ours |
 
 ## Third-party dependencies (not redistributed)
 

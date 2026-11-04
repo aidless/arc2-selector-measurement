@@ -174,9 +174,12 @@ Both report `kgmon -> diverse: +0/-1` -- the reason `v2div` is not the default.
 
 ## Datasets and licences
 
-- Code in `src/` and `analysis/`: **Apache-2.0** (see `LICENSE`).
+- Code we authored (`analysis/`, `src/cell_03.py`, `scores.json`, this README, `LINEAGE.md`): **MIT-0** (see `LICENSE`).
+- The other eight files in `src/`: **Apache-2.0**, inherited from the upstream notebook chain (see `LICENSE-APACHE-2.0` and `LINEAGE.md` for the per-file table).
 - Candidate dumps and per-pair labels in `dumps/`: **CC0** (see `LICENSE-CC0`).
 - The base notebook and model retain their own licences; see `LINEAGE.md`.
+
+We split the licences this way on purpose. The ARC Prize 2026 rules require code and methods authored by the submitter to be released under a permissive public-domain licence (CC0 or MIT-0), while third-party components only have to carry an open-source licence that permits public sharing. The four `src/` modules above are derived from upstream notebooks and keep Apache-2.0; everything we wrote is MIT-0.
 
 ## Non-claims
 
