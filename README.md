@@ -1,188 +1,265 @@
-# ARC-AGI-2 Selector Surface and Leaderboard Noise Floor
+# ARC-AGI-2 selector vs leaderboard noise
 
 [![CI](https://github.com/aidless/arc2-selector-measurement/actions/workflows/ci.yml/badge.svg)](https://github.com/aidless/arc2-selector-measurement/actions/workflows/ci.yml)
 
-**A measurement-discipline contribution for the [ARC Prize 2026 — ARC-AGI-2](https://www.kaggle.com/competitions/arc-prize-2026-arc-agi-2) Innovation Prize.**
+**STATUS: WORK-IN-PROGRESS — not A yet.** Version `0.1.0-wip` (`VERSION`).
 
-This repository is the open-source artifact set for our ARC-AGI-2 writeup. It is deliberately **not** a high-scoring solution. It is the tooling and the measurements needed to tell a real selector effect apart from leaderboard noise.
+<!-- problem-begin -->
+This repository measures ARC-AGI-2 selector choices against the same-code public-leaderboard noise floor.
+It does not claim a prize-winning solver, and it does not report a high score.
+Offline recompute covers the noise floor and dump structure only; selector pass rates stay UNKNOWN until ground-truth labels are available.
+<!-- problem-end -->
 
----
+## Offline path
 
-## The headline result: the leaderboard has a 2.08-point noise floor
-
-Two submissions carrying the same recorded code hash (`96e6f2e7f7113147`) scored **29.72** (ref 57857093) and **27.64** (ref 57891197).
-
-```
-Δ = 2.08 points from the same recorded code
-```
-
-A second same-hash pair (`f35df0a5dff359f8…`) scored 28.47 and 27.22 — Δ = 1.25 — so 2.08 is the largest observed spread, not a constant. An earlier pair from the same recipe scored 31.39 and 29.31, but neither recorded a hash; we treat that as weaker evidence and do not use it as a same-code bound.
-
-On this benchmark, **any leaderboard delta below ~2 points is unresolvable noise.** Deployment is not evidence. This number is the most reusable thing we produced, and it is the reason we publish the selector surface rather than a score.
-
-## The theory: the metric is a set function
-
-The official caliber scores a pair **1 if either of the 2 predicted outputs exactly matches ground truth** — a pure OR over two attempts.
-
-> **Proposition (selector objective).** Let a task have candidate pool *C* and score
-> *s(pair) = 1[g₁ = y] OR 1[g₂ = y]*. Then *s* depends only on the **unordered set** {*g₁, g₂*},
-> and *E[s] = P(∃ g ∈ S : g = y)* where *S = {g₁, g₂}*.
->
-> 1. The **order** of the two attempts carries zero information.
-> 2. Selection is therefore a **set-coverage** problem, not an attempt-**ranking** problem.
-> 3. A gain is possible only if the second candidate is *genuinely different* — two
->    near-duplicate high-scoring candidates cover almost the same single output.
-
-This is why the diversity constraint is the *natural* ablation rather than one heuristic among many, and why confidence-threshold selectors (`kgmon`) and count selectors can legitimately disagree: `kgmon` ranks, but the metric only cares about what the second slot **adds to coverage**.
-
-## What is here
-
-| Path | Contents |
-|---|---|
-| `src/arc_loader.py` | ARC task/grid loading, tokenization, augmentation |
-| `src/arc_decoder.py` | **The selector surface** — `score_kgmon`, `score_count_plain`, `score_count_diverse`, `turbo_dfs`, `calc_scores` |
-| `src/arc_solver.py` | Qwen3-4B SFT decoder wrapper, LoRA training path |
-| `src/starter.py` | Multi-worker runner, time budgeting |
-| `src/cell_03.py` | **Measurement switches** (`ARC_SELECTOR`, `ARC_COST_ORDER`, `ARC_SCORE_SALT`, `ARC_DEV_TASKS`) |
-| `analysis/` | Exact sign test, selector recomputation, and the noise-floor computation |
-| `dumps/` | Candidate dumps + per-pair labels (CC0) — see below |
-
-## The selector surface
-
-Three interchangeable selectors, selected by the `ARC_SELECTOR` environment variable:
-
-| Selector | Behaviour | Status |
-|---|---|---|
-| `score_kgmon` | `len(guesses) − mean(score_aug)` — count minus mean augmentation NLL | v3 baseline signal |
-| `score_count_plain` | Pure count-descending, kgmon NLL as tiebreak | **shipped default** (`ARC_SELECTOR=v2`) |
-| `score_count_diverse` | Count-descending + normalized-Hamming diversity constraint (> 0.06) | Available (`ARC_SELECTOR=v2div`), **not** the default — see replication below |
-
-## Measurement switches
-
-Reproducible variants are defined by four environment variables, set in `src/cell_03.py`:
-
-- `ARC_SELECTOR` — which selector to use
-- `ARC_COST_ORDER` — `1` = cheap-tasks-first, `0` = fixed dictionary order
-- `ARC_SCORE_SALT` — deterministic crc32 seed vs. salted `hash(task_id)`
-- `ARC_DEV_TASKS` — task subset selector (dev mode only; ignored during competition rerun)
-
-## Honest results: no selector survives cross-pool replication
-
-We tested three selectors on three **real** candidate pools produced by separate runs.
-The pools overlap (T3 full, n = 159, shares 99 keys with T4-rem108 and 56 with T4-n8;
-T4-rem108 and T4-n8 are disjoint), so each pool is reported separately and the merged
-pool is only a descriptive summary.
-
-| pool | n | kgmon | count-desc | paired (count − kgmon) |
-|---|---:|---:|---:|---:|
-| T3 full | 159 | 22.64% | 22.01% | **+1 / −2** |
-| T4-rem108 | 101 | 24.75% | 26.73% | +2 / −0 |
-| T4-n8 | 57 | 26.32% | 26.32% | +0 / −0 |
-| merged (descriptive) | 162 | 24.07% | 25.93% | +3 / −0 |
-
-The merged row is the one that looks like a win, and the one that should be trusted
-least: it is assembled from overlapping runs, so for 99 keys the candidate pool is
-larger than any single run actually produced.
-
-**On the largest single pool, count-desc is slightly worse than kgmon (+1/−2).**
-
-So we ship `count-desc` as the default (`ARC_SELECTOR=v2`) because it is the simplest
-deterministic rule — **not** because we demonstrated it is better. We could not
-demonstrate that. This is the paper's point: at this sample size, selector effects sit
-below both the leaderboard noise floor (2.08 points) and the cross-pool replication
-threshold.
-
-**The diversity constraint fails the same test, harder.** `ARC_SELECTOR=v2div` scored
-+6/−0 on the merged pool but **+1/−4** on the largest single pool. It is not the default.
-
-### Five negative results (each cost real compute, all reproducible)
-
-1. Pure CPU program search: transform / neighbour / v1_dsl / dsl_expanded / v6_chain → **0/172** on eval-120.
-2. 127-program DSL: eval **0/172**, train holdout 7/259, zero gain from families 10–12 (saturation).
-3. Prompt-level LLM with 4k budget: 108 outputs, **all rejected** by grid validation.
-4. Raising the per-task cap with water-fill scheduling: **−0.83**, an empty result.
-5. kgmon vs. probmul selector A/B on 10 tasks: **1/10 vs 1/10**, identical per task.
-
-**Environment consistency is not free.** The same 4 tasks pass **3/4** in the official Kaggle probe (transformers 4.55.4, GC=0) but only **1/4** on a local A10 (5.16.1, GC=1). Absolute scores are not comparable across environments; every cross-environment conclusion must be rejected.
-
-## Lineage (fully attributed)
-
-```
-NVARC ARC'25 champion solution  (nihilisticneuralnet/baseline-nvarc-arc-25-winning-solution-for-t4x2)
-  └─ koushikrudra/failed-in-aimo
-        └─ mikelou1/arc-agi2-lb33-89-minimal-perfpatch   ← our base (LB 33.89)
-              └─ liuzewen123/arc2-bronze-v7             ← this repository
-```
-
-- Base notebook: `mikelou1/arc-agi2-lb33-89-minimal-perfpatch` (public)
-- Model: `sorokin/qwen3_4b_grids15_sft139` (Apache-2.0), a Qwen3-4B SFT decoder
-- Runtime: 4× NVIDIA L4, 12 h submission budget
-
-## Reproduction
-
-1. Run the notebook `liuzewen123/arc2-bronze-v7` on Kaggle (4×L4). It writes `arc_loader.py`, `arc_decoder.py`, `arc_solver.py`, `starter.py` — the same files as `src/`.
-2. Set the measurement switches in `src/cell_03.py` to define the variant.
-3. Recompute the selector comparison from the released dumps:
-
-```bash
-kaggle competitions download -c arc-prize-2026-arc-agi-2 \
-  -f arc-agi_evaluation_solutions.json
-
-python3 analysis/recompute_selectors.py \
-  --gt arc-agi_evaluation_solutions.json \
-  --dumps dumps/preds_t3_full.candidates.json \
-           dumps/preds_t4_remaining108.candidates.json \
-           dumps/preds_t4_n8.candidates.json \
-  --label merged
-```
-
-Expected output on the merged pool (162 items):
-
-```
-  kgmon     acc = 24.0741%  (39/162)
-  count     acc = 25.9259%  (42/162)
-  diverse   acc = 27.7778%  (45/162)
-  kgmon -> count: +3/-0  sign p = 0.25
-  kgmon -> diverse: +6/-0  sign p = 0.03125
-```
-
-4. Reproduce the noise floor:
+Python 3.11 or newer, standard library only. No GPU, no Kaggle download, no third-party packages. From a fresh clone:
 
 ```bash
 python3 analysis/noise_floor.py scores.json
+python3 analysis/dump_structure.py
+python3 analysis/sign_test.py tests/fixtures/base_pass.jsonl tests/fixtures/cand_pass.jsonl
+python3 -m unittest discover -s tests -q
 ```
 
-with `scores.json` listing the two same-bytes runs:
+`.github/workflows/ci.yml` runs that unittest discovery on Python 3.11, then `python -m compileall -q analysis tests`. The suite compiles the importable modules under `src/`. `src/cell_02.py` and `src/cell_08.py` are notebook shell lines (`!pip`, and a kernel launch that names the CUDA `ptxas` binary). They are not Python modules, and the offline commands do not run them. The job does not train, does not install a requirements file, and does not download the competition.
+
+## Noise floor
+
+`scores.json` transcribes `kaggle competitions submissions -c arc-prize-2026-arc-agi-2` on 2026-11-03 (`evidence_status`: `transcribed_not_reverified`). Each recorded `code_sha256` is 16 hex characters as stored. This checkout does not re-hash a submission bundle and does not re-pull Kaggle.
+
+The floor is hash `96e6f2e7f7113147`, refs `57857093` and `57891197`, public scores 29.72 and 27.64, spread 2.08.
+Hash `f35df0a5dff359f8` (refs `57652539` and `57757933`, scores 28.47 and 27.22) spreads 1.25.
+Refs `57318970` (31.39) and `57358812` (29.31) have no hash. That excluded gap also prints as 2.08.
+The block is the output of `analysis/noise_floor.py` via `same_code_report`.
 
 ```json
-{"runs": [
-  {"ref": "57318970", "code_sha256": "f35df0a5dff359f8", "public_score": 31.39},
-  {"ref": "57857093", "code_sha256": "f35df0a5dff359f8", "public_score": 29.31}
-]}
+{
+  "distinct_eligible_spreads": [
+    "2.08",
+    "1.25"
+  ],
+  "excluded_no_hash": [
+    {
+      "public_score": "31.39",
+      "ref": "57318970"
+    },
+    {
+      "public_score": "29.31",
+      "ref": "57358812"
+    }
+  ],
+  "excluded_no_hash_spread": "2.08",
+  "floor_hash": "96e6f2e7f7113147",
+  "floor_points": "2.08",
+  "floor_refs": [
+    "57857093",
+    "57891197"
+  ],
+  "floor_scores": [
+    "29.72",
+    "27.64"
+  ],
+  "hashed_groups": [
+    {
+      "code_sha256": "f35df0a5dff359f8",
+      "hash_hex_chars": 16,
+      "n": 2,
+      "refs": [
+        "57652539",
+        "57757933"
+      ],
+      "scores": [
+        "28.47",
+        "27.22"
+      ],
+      "spread": "1.25"
+    },
+    {
+      "code_sha256": "96e6f2e7f7113147",
+      "hash_hex_chars": 16,
+      "n": 2,
+      "refs": [
+        "57857093",
+        "57891197"
+      ],
+      "scores": [
+        "29.72",
+        "27.64"
+      ],
+      "spread": "2.08"
+    }
+  ],
+  "live_kaggle_repull": false,
+  "retrieval_command": "kaggle competitions submissions -c arc-prize-2026-arc-agi-2",
+  "retrieved_on": "2026-11-03",
+  "source_status": "transcribed_not_reverified",
+  "status": "established"
+}
 ```
 
-Expected: `NOISE FLOOR = 2.08 points`.
+## Dump structure
 
-5. Run the same script on each independent pool separately to see the non-replication:
+Committed dumps store candidate grids and selector features. They do not store a correctness bit, so this section has no pass rate. Set-disagreement counts are how often two selectors choose a different unordered pair of grids.
+
+`preds_t3_full.candidates.json` has 159 rows, `preds_t4_remaining108.candidates.json` has 101, and `preds_t4_n8.candidates.json` has 57. Their key union has 162 keys. Shared keys are 99 (t3 ∩ remaining108), 56 (t3 ∩ n8), and 0 (remaining108 ∩ n8). `preds_t4_seed4321_first64.candidates.json` has 55 rows and `preds_t4_passb_first64.candidates.json` has 59. `first64` is a run label.
+
+```json
+{
+  "accuracy": null,
+  "accuracy_status": "UNKNOWN_no_ground_truth_in_repo",
+  "dump_dir": "dumps",
+  "merged_files": [
+    "preds_t3_full.candidates.json",
+    "preds_t4_n8.candidates.json",
+    "preds_t4_remaining108.candidates.json"
+  ],
+  "merged_t3_n8_remaining108_keys": 162,
+  "overlaps": [
+    {
+      "a": "preds_t3_full.candidates.json",
+      "b": "preds_t4_n8.candidates.json",
+      "shared_keys": 56
+    },
+    {
+      "a": "preds_t3_full.candidates.json",
+      "b": "preds_t4_passb_first64.candidates.json",
+      "shared_keys": 56
+    },
+    {
+      "a": "preds_t3_full.candidates.json",
+      "b": "preds_t4_remaining108.candidates.json",
+      "shared_keys": 99
+    },
+    {
+      "a": "preds_t3_full.candidates.json",
+      "b": "preds_t4_seed4321_first64.candidates.json",
+      "shared_keys": 53
+    },
+    {
+      "a": "preds_t4_n8.candidates.json",
+      "b": "preds_t4_passb_first64.candidates.json",
+      "shared_keys": 56
+    },
+    {
+      "a": "preds_t4_n8.candidates.json",
+      "b": "preds_t4_remaining108.candidates.json",
+      "shared_keys": 0
+    },
+    {
+      "a": "preds_t4_n8.candidates.json",
+      "b": "preds_t4_seed4321_first64.candidates.json",
+      "shared_keys": 54
+    },
+    {
+      "a": "preds_t4_passb_first64.candidates.json",
+      "b": "preds_t4_remaining108.candidates.json",
+      "shared_keys": 0
+    },
+    {
+      "a": "preds_t4_passb_first64.candidates.json",
+      "b": "preds_t4_seed4321_first64.candidates.json",
+      "shared_keys": 55
+    },
+    {
+      "a": "preds_t4_remaining108.candidates.json",
+      "b": "preds_t4_seed4321_first64.candidates.json",
+      "shared_keys": 0
+    }
+  ],
+  "pools": {
+    "preds_t3_full.candidates.json": {
+      "kgmon_field_mismatches": 0,
+      "rows": 159,
+      "rows_with_fewer_than_two_candidates": 11,
+      "selector_set_disagreements": {
+        "count_vs_diverse": 26,
+        "kgmon_vs_count": 69,
+        "kgmon_vs_diverse": 81
+      },
+      "tasks": 114
+    },
+    "preds_t4_n8.candidates.json": {
+      "kgmon_field_mismatches": 0,
+      "rows": 57,
+      "rows_with_fewer_than_two_candidates": 2,
+      "selector_set_disagreements": {
+        "count_vs_diverse": 13,
+        "kgmon_vs_count": 22,
+        "kgmon_vs_diverse": 27
+      },
+      "tasks": 38
+    },
+    "preds_t4_passb_first64.candidates.json": {
+      "kgmon_field_mismatches": 0,
+      "rows": 59,
+      "rows_with_fewer_than_two_candidates": 3,
+      "selector_set_disagreements": {
+        "count_vs_diverse": 14,
+        "kgmon_vs_count": 15,
+        "kgmon_vs_diverse": 22
+      },
+      "tasks": 40
+    },
+    "preds_t4_remaining108.candidates.json": {
+      "kgmon_field_mismatches": 0,
+      "rows": 101,
+      "rows_with_fewer_than_two_candidates": 6,
+      "selector_set_disagreements": {
+        "count_vs_diverse": 17,
+        "kgmon_vs_count": 33,
+        "kgmon_vs_diverse": 43
+      },
+      "tasks": 76
+    },
+    "preds_t4_seed4321_first64.candidates.json": {
+      "kgmon_field_mismatches": 0,
+      "rows": 55,
+      "rows_with_fewer_than_two_candidates": 6,
+      "selector_set_disagreements": {
+        "count_vs_diverse": 13,
+        "kgmon_vs_count": 22,
+        "kgmon_vs_diverse": 28
+      },
+      "tasks": 37
+    }
+  },
+  "schema": "dump-structure-v1"
+}
+```
+
+## Selectors
+
+| Selector | Rule | Switch in `src/cell_03.py` |
+|---|---|---|
+| `kgmon` | count minus mean augmentation NLL | `ARC_SELECTOR=kgmon` |
+| `count` | count descending, lower NLL breaks ties | `ARC_SELECTOR=v2` (default) |
+| `diverse` | count order, then normalized Hamming above 0.06 | `ARC_SELECTOR=v2div` |
+
+`v2` is the default because it is the short deterministic rule. This checkout does not show a pass-rate advantage for it. The OR caliber scores a test index 1 when either chosen grid matches. Order adds nothing, and a second copy of the same grid adds no coverage. A per-pair pass rate is a different estimand from the Kaggle public score.
+
+## Train path
+
+Separate from the offline path and from CI. A Kaggle ARC Prize 2026 kernel with GPU, plus the model `sorokin/qwen3_4b_grids15_sft139` (not redistributed here), is what `src/` was extracted from. Those modules open the kernel mount paths written in `src/starter.py`, `src/arc_solver.py`, and `src/cell_09.py`. The commands in the offline section do not open them. Measurement switches are `ARC_SELECTOR`, `ARC_COST_ORDER`, `ARC_SCORE_SALT`, and `ARC_DEV_TASKS` in `src/cell_03.py`.
+
+Scoring selectors needs a solutions file you already have the right to use. This repository does not commit one and does not commit an expected accuracy:
 
 ```bash
-python3 analysis/recompute_selectors.py --gt arc-agi_evaluation_solutions.json \
-  --dumps dumps/preds_t4_seed4321_first64.candidates.json --label seed4321
-python3 analysis/recompute_selectors.py --gt arc-agi_evaluation_solutions.json \
-  --dumps dumps/preds_t4_passb_first64.candidates.json --label passb
+python3 analysis/recompute_selectors.py \
+  --gt arc-agi_evaluation_solutions.json \
+  --dumps dumps/preds_t3_full.candidates.json
 ```
 
-Both report `kgmon -> diverse: +0/-1` -- the reason `v2div` is not the default.
+## Gaps
 
-## Datasets and licences
+1. Selector pass rates are UNKNOWN. Dump rows have `task`, `i`, `elapsed_s`, `n_candidates`, and `top` objects with `solution`, `count`, `beam_score`, `aug_nll_mean`, `kgmon`. There is no correctness field, and `arc-agi_evaluation_solutions.json` is not committed, so `analysis/recompute_selectors.py` cannot run in CI. Historical writeups disagree and are not results: an older README table listed merged-pool 24.0741% / 25.9259% / 27.7778% (39/162, 42/162, 45/162), single-pool figures 22.64% vs 22.01% (+1/−2), 24.75% vs 26.73% (+2/−0), 26.32% (+0/−0), diversity +1/−4, and seed/passb +0/−1. A comment formerly in `src/arc_decoder.py` cited 172 pairs, +2/−0, 23.2558% → 24.4186%, and a diversity note of +3/−0 then +0/−2. UNKNOWN.
+2. Public scores are the 2026-11-03 transcription in `scores.json`. The 2.08 spread is recomputed from that file. CI does not re-pull Kaggle, and the 16-hex `code_sha256` values are not re-derived from a bundle.
+3. Older negative-result counts have no logs in this tree: 0/172, 7/259, 108 rejected outputs, −0.83, 1/10 vs 1/10, and 3/4 vs 1/4 across environments. UNKNOWN.
+4. Upstream notebook licence badges are corroborated, not visually re-read (`LINEAGE.md`). The base slug `lb33-89` is not a score measured here. The kernel slug `arc2-bronze-v7` is a name, not a prize in `scores.json`.
 
-- Code we authored (`analysis/`, `src/cell_03.py`, `scores.json`, this README, `LINEAGE.md`): **MIT-0** (see `LICENSE`).
-- The other eight files in `src/`: **Apache-2.0**, inherited from the upstream notebook chain (see `LICENSE-APACHE-2.0` and `LINEAGE.md` for the per-file table).
-- Candidate dumps and per-pair labels in `dumps/`: **CC0** (see `LICENSE-CC0`).
-- The base notebook and model retain their own licences; see `LINEAGE.md`.
+## Failure modes
 
-We split the licences this way on purpose. The ARC Prize 2026 rules require code and methods authored by the submitter to be released under a permissive public-domain licence (CC0 or MIT-0), while third-party components only have to carry an open-source licence that permits public sharing. The four `src/` modules above are derived from upstream notebooks and keep Apache-2.0; everything we wrote is MIT-0.
+`FAILURE_MODES.md` covers mistaking Δ for a method gain, treating the missing-hash 31.39/29.31 pair as the same-code floor, and OR-metric pitfalls (order, near-duplicates, merged overlapping pools, mixed units).
 
-## Non-claims
+## Licences
 
-We did not improve raw ARC-AGI-2 solve rate. We are not close to the leaders. The count-desc result is underpowered and sub-noise-floor. This repository is a contribution about how to *measure* selector changes, not a claim of a better solver.
+Code written here (`analysis/`, `src/cell_03.py`, `scores.json`, this README, `LINEAGE.md`, `FAILURE_MODES.md`) is MIT-0 (`LICENSE`). The other files in `src/` are Apache-2.0 (`LICENSE-APACHE-2.0`, per-file table in `LINEAGE.md`). Candidate dumps are CC0 (`LICENSE-CC0`).
