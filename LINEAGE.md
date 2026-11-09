@@ -2,23 +2,25 @@
 
 This repository redistributes code derived from a public Kaggle notebook chain. Every
 upstream component and its licence is listed here. The licences of the upstream
-notebooks govern their respective code. The four derived modules in `src/` are
-covered by `LICENSE-APACHE-2.0`; everything we wrote ourselves is MIT-0
-(`LICENSE`); the candidate dumps are CC0 (`LICENSE-CC0`).
+notebooks govern their respective code. The inherited modules in `src/` listed
+in the table below are covered by `LICENSE-APACHE-2.0`; everything we wrote
+ourselves is MIT-0 (`LICENSE`); the candidate dumps are CC0 (`LICENSE-CC0`).
 
 ## Notebook chain
 
 ```
-nihilisticneuralnet/baseline-nvarc-arc-25-winning-solution-for-t4x2   (ARC'25 champion solution)
-  └─ koushikrudra/failed-in-aimo                                     (community base, 1046 votes)
-        └─ mikelou1/arc-agi2-lb33-89-minimal-perfpatch                (our base, LB 33.89, 226 votes)
-              └─ liuzewen123/arc2-bronze-v7                          (our kernel)
+nihilisticneuralnet/baseline-nvarc-arc-25-winning-solution-for-t4x2   (upstream notebook slug)
+  └─ koushikrudra/failed-in-aimo                                     (community base)
+        └─ mikelou1/arc-agi2-lb33-89-minimal-perfpatch                (our base notebook)
+              └─ liuzewen123/arc2-bronze-v7                          (our kernel slug)
 ```
 
 - Base notebook URL: https://www.kaggle.com/code/mikelou1/arc-agi2-lb33-89-minimal-perfpatch
 - Our kernel URL: https://www.kaggle.com/code/liuzewen123/arc2-bronze-v7
 
-**Licence verification (resolved 2026-11-03).** All three upstream notebooks are
+The base slug contains `lb33-89`. Reading that as a public score of 33.89 is a property of the notebook title, not a score recomputed in this repository. `arc2-bronze-v7` is the kernel slug. It is not a prize recorded by `scores.json` or the dumps.
+
+**Licence check (2026-11-03).** All three upstream notebooks are
 public and were pulled successfully with `kaggle kernels pull`; each returns
 `is_private: false`. The Apache-2.0 terms of the chain are corroborated by the
 downstream NVARC notebook

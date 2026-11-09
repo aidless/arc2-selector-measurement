@@ -35,16 +35,13 @@ def score_kgmon(guesses):
     return score_sum(guesses, getter_kgmon)
 
 
-# ---- selector v2 (bronze v5): count-desc ordering ----
-# Evidence (2026-10-30, official caliber = "any of the 2 predicted outputs
-# matches the ground truth exactly, you score 1", a pure OR over attempts,
-# averaged over 172 pairs): count-desc beats kgmon 2 gained / 0 lost,
-# exact sign p = .25, 23.2558% -> 24.4186% per pair. Attempt order is worth
-# nothing under OR -- only the SET of two candidates is scored. The diversity
-# constraint (attempt_2 Hamming > .06) gained +3/-0 on these dumps but FAILED
-# replication on an independent passk pool (+0/-2 overall and +0/-2 within the
-# oracle-solvable subset; pooled sign p = .50), so it is NOT the default - it
-# stays available as ARC_SELECTOR=v2div for further testing.
+# ---- selector v2: count-desc ordering ----
+# The OR caliber scores an unordered pair of attempts, so this ordering is a
+# set-coverage rule. Pass rates are not stored in this file. A previous comment
+# quoted 172-pair percentages that disagree with an older README table; both
+# are UNKNOWN here because dumps/ has no ground-truth bit. See FAILURE_MODES.md.
+# ARC_SELECTOR=v2div keeps the Hamming > 0.06 constraint available. It is not
+# the default: no committed pass-rate comparison shows that it should be.
 def getter_count(guesses):
     # count-desc with kgmon tiebreak; kgmon = count - mean nll is the v3 signal
     return (len(guesses), -(np.mean([np.mean(g["score_aug"]) for g in guesses])))

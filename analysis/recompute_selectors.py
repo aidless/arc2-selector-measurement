@@ -1,42 +1,35 @@
 #!/usr/bin/env python3
-"""Recompute the selector comparison reported in our ARC-AGI-2 writeup.
+"""Score selectors against a ground-truth file the caller supplies.
 
-This is the script that produced the numbers in the "Results" section:
-  - kgmon         : 24.07% (39/162)
-  - count-desc    : 25.93% (42/162)   -> +3 gained / 0 lost vs kgmon, sign p = .25
-  - count+diverse : 27.78% (45/162) on the merged pool, BUT
-                     +0 / -1 on each of two independent smaller pools (non-replication)
+This repository does not commit ``arc-agi_evaluation_solutions.json`` and does
+not pin a pass rate. With no ground-truth file, use ``analysis/dump_structure.py``,
+which reports overlap and set disagreement only.
 
-It reads the official evaluation ground truth and one or more candidate-dump
-JSONL files, applies each selector under the official OR caliber
-(a pair scores 1 if EITHER of the two selected candidates matches exactly),
-and prints the paired comparison plus the exact two-sided sign test.
+When ``--gt`` is a local solutions file the caller is allowed to use, each
+(task, test index) scores 1 if either of the two selected grids matches that
+index exactly (OR over two attempts). The script then prints paired counts and
+an exact two-sided sign test. Those counts are not a Kaggle public score.
 
-Candidate dump line format (one JSON object per line):
-    {"task": "0934a4d8", "i": 0, "top": [
-        {"solution": [[..]], "count": 3, "aug_nll_mean": 43.94, ...}, ...]}
+Dump rows are JSON lists (one object per test index) with ``task``, ``i``, and
+``top[].solution / count / aug_nll_mean``.
 
 Usage:
-    python3 recompute_selectors.py --gt arc-agi_evaluation_solutions.json \\
-        --dumps pool_a.jsonl pool_b.jsonl [...] [--label pool_a --label pool_b]
+    python3 analysis/recompute_selectors.py --gt arc-agi_evaluation_solutions.json \\
+        --dumps dumps/preds_t3_full.candidates.json
 """
 import argparse
 import json
-import math
 import os
+import sys
 from collections import OrderedDict
+from pathlib import Path
 
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-def norm(grid):
-    return tuple(tuple(row) for row in grid)
-
-
-def hamming(a, b):
-    fa = [x for row in a for x in row]
-    fb = [x for row in b for x in row]
-    if len(fa) != len(fb):
-        return 1.0
-    return sum(1 for x, y in zip(fa, fb) if x != y) / max(1, len(fa))
+from analysis.selectors import norm, pick_count, pick_diverse, pick_kgmon
+from analysis.sign_test import exact_sign_test
 
 
 def load_dumps(paths, gt):
@@ -67,36 +60,6 @@ def load_dumps(paths, gt):
     )
 
 
-def pick_kgmon(cands):
-    """v3 baseline signal: count minus mean augmentation NLL."""
-    return sorted(cands, key=lambda c: -(c["count"] - c["nll"]))
-
-
-def pick_count(cands):
-    """v2 shipped default: count-desc with NLL tiebreak."""
-    return sorted(cands, key=lambda c: (-c["count"], c["nll"]))
-
-
-def pick_diverse(cands, min_dist=0.06):
-    """v2div: count-desc plus a normalized-Hamming diversity constraint."""
-    ordered = pick_count(cands)
-    if not ordered:
-        return ordered
-    out = [ordered[0]]
-    for cand in ordered[1:]:
-        if len(out) >= 2:
-            break
-        if all(hamming(cand["sol"], o["sol"]) > min_dist for o in out):
-            out.append(cand)
-    if len(out) < 2:
-        for cand in ordered:
-            if len(out) >= 2:
-                break
-            if all(hamming(cand["sol"], o["sol"]) > 0 for o in out):
-                out.append(cand)
-    return out
-
-
 SELECTORS = OrderedDict([
     ("kgmon", pick_kgmon),
     ("count", pick_count),
@@ -112,15 +75,6 @@ def or_caliber_vector(items, picker):
     )
 
 
-def exact_sign_test(gained, lost):
-    n = gained + lost
-    if n == 0:
-        return 1.0
-    k = min(gained, lost)
-    tail = sum(math.comb(n, i) for i in range(k + 1)) / (2 ** n)
-    return min(1.0, 2 * tail)
-
-
 def compare(base, cand, base_name, cand_name):
     gained = sum(1 for k in base if cand[k] and not base[k])
     lost = sum(1 for k in base if base[k] and not cand[k])
@@ -129,6 +83,10 @@ def compare(base, cand, base_name, cand_name):
 
 
 def report(items, title):
+    if not items:
+        print(f"\n=== {title}  (n = 0 items)")
+        print("  no rows matched the ground-truth file")
+        return {}
     vectors = {name: or_caliber_vector(items, fn) for name, fn in SELECTORS.items()}
     print(f"\n=== {title}  (n = {len(items)} items)")
     for name, vec in vectors.items():
@@ -173,11 +131,9 @@ def main():
         report(load_dumps(args.dumps, gt), "MERGED (all pools)")
 
     print()
-    print("Interpretation: every selector line here fails cross-pool replication.")
-    print("count-desc wins on the merged pool but loses on the largest single pool;")
-    print("the diversity constraint swings even harder. A gain that appears only on")
-    print("the pool used to discover it is not a gain -- which is why neither rule is")
-    print("shipped as a demonstrated improvement.")
+    print("These percentages use only the ground-truth file passed on the command line.")
+    print("This repository does not pin them. Overlapping dumps are not independent samples.")
+    print("A per-pair accuracy is not a Kaggle public score.")
 
 
 if __name__ == "__main__":
