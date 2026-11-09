@@ -1,5 +1,7 @@
 # ARC-AGI-2 Selector Surface and Leaderboard Noise Floor
 
+[![CI](https://github.com/aidless/arc2-selector-measurement/actions/workflows/ci.yml/badge.svg)](https://github.com/aidless/arc2-selector-measurement/actions/workflows/ci.yml)
+
 **A measurement-discipline contribution for the [ARC Prize 2026 — ARC-AGI-2](https://www.kaggle.com/competitions/arc-prize-2026-arc-agi-2) Innovation Prize.**
 
 This repository is the open-source artifact set for our ARC-AGI-2 writeup. It is deliberately **not** a high-scoring solution. It is the tooling and the measurements needed to tell a real selector effect apart from leaderboard noise.

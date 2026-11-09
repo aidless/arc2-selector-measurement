@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies (non-fatal)
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -q -r requirements.txt || echo "::warning::dependency install failed, continuing"
+          fi
+      - name: Syntax gate
+        run: python -m compileall -q .
+      - name: Tests (if present)
+        run: |
+          if [ -d tests ] || find . -maxdepth 2 -type d -name tests | grep -q .; then
+            pip install -q pytest
+            pytest -q
+          else
+            echo "no tests directory yet — syntax gate only"
+          fi
