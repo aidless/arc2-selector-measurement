@@ -20,6 +20,13 @@ A second same-hash pair (`f35df0a5dff359f8…`) scored 28.47 and 27.22 — Δ = 
 
 On this benchmark, **any leaderboard delta below ~2 points is unresolvable noise.** Deployment is not evidence. This number is the most reusable thing we produced, and it is the reason we publish the selector surface rather than a score.
 
+![ARC-AGI-2 leaderboard noise floor: six submissions grouped by recorded code hash](figures/noise-floor.png)
+
+*The six leaderboard rows of `scores.json`, coloured by recorded code hash: two same-code
+pairs (Δ = 2.08 and Δ = 1.25) and one un-hashed context pair (hatched, excluded from the
+floor). Regenerate with `python3 analysis/plot_noise_floor.py` — the script reads
+`scores.json` verbatim and retypes nothing.*
+
 ## The theory: the metric is a set function
 
 The official caliber scores a pair **1 if either of the 2 predicted outputs exactly matches ground truth** — a pure OR over two attempts.
@@ -152,16 +159,21 @@ Expected output on the merged pool (162 items):
 python3 analysis/noise_floor.py scores.json
 ```
 
-with `scores.json` listing the two same-bytes runs:
+`scores.json` (committed) carries all six leaderboard rows, two same-code pairs plus one
+un-hashed context pair — abbreviated here, see the file for the full notes:
 
 ```json
 {"runs": [
-  {"ref": "57318970", "code_sha256": "f35df0a5dff359f8", "public_score": 31.39},
-  {"ref": "57857093", "code_sha256": "f35df0a5dff359f8", "public_score": 29.31}
+  {"ref": "57652539", "code_sha256": "f35df0a5dff359f8", "public_score": 28.47},
+  {"ref": "57757933", "code_sha256": "f35df0a5dff359f8", "public_score": 27.22},
+  {"ref": "57857093", "code_sha256": "96e6f2e7f7113147", "public_score": 29.72},
+  {"ref": "57891197", "code_sha256": "96e6f2e7f7113147", "public_score": 27.64}
 ]}
 ```
 
-Expected: `NOISE FLOOR = 2.08 points`.
+Verified 2026-11-10, clean checkout: the script prints both groups and their spreads —
+`96e6f2e7f7113147 → 2.08`, `f35df0a5dff359f8 → 1.25` — and ends with
+`NOISE FLOOR = 2.08 points`.
 
 5. Run the same script on each independent pool separately to see the non-replication:
 
