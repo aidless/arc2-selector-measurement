@@ -19,7 +19,8 @@ jobs:
             pip install -q -r requirements.txt || echo "::warning::dependency install failed, continuing"
           fi
       - name: Syntax gate
-        run: python -m compileall -q .
+        # src/cell_*.py 是 Kaggle notebook 单元导出（含 !pip 等魔法命令），不参与 Python 语法闸
+        run: python -m compileall -q . -x 'cell_[0-9]+\.py'
       - name: Tests (if present)
         run: |
           if [ -d tests ] || find . -maxdepth 2 -type d -name tests | grep -q .; then
